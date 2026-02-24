@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Entry</title>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI;
+}
+
+body{
+    background:#0f2027;
+    color:white;
+    padding:20px;
+}
+
+.container{
+    max-width:1100px;
+    margin:auto;
+}
+
+h2{
+    margin-bottom:20px;
+}
+
+.card{
+    background:#1c2b36;
+    padding:20px;
+    border-radius:10px;
+    margin-bottom:20px;
+}
+
+input, select{
+    padding:8px;
+    border-radius:5px;
+    border:none;
+    width:100%;
+}
+
+.row{
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr 1fr auto;
+    gap:10px;
+    margin-bottom:10px;
+}
+
+button{
+    padding:8px 15px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.add-btn{
+    background:#0072ff;
+    color:white;
+}
+
+.remove-btn{
+    background:#ff4b2b;
+    color:white;
+}
+
+.submit-btn{
+    background:#00c6ff;
+    color:white;
+    margin-top:10px;
+}
+
+.total-box{
+    font-size:20px;
+    margin-top:15px;
+    text-align:right;
+}
+
+@media(max-width:768px){
+    .row{
+        grid-template-columns:1fr;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Purchase Entry</h2>
+
+<div class="card">
+
+<label>Supplier</label>
+<select id="supplierSelect"></select>
+
+<br><br>
+
+<label>Date</label>
+<input type="date" id="purchaseDate">
+
+<br><br>
+
+<div id="productRows"></div>
+
+<button class="add-btn" onclick="addRow()">+ Add Product</button>
+
+<div class="total-box">
+    Total: ₹ <span id="grandTotal">0</span>
+</div>
+
+<button class="submit-btn" onclick="submitPurchase()">Submit Purchase</button>
+
+</div>
+
+</div>
+
+<script>
+
+const BASE_URL = "http://127.0.0.1:8000";
+const token = localStorage.getItem("token");
+
+if(!token){
+    window.location.href="index.html";
+}
+
+document.getElementById("purchaseDate").value = new Date().toISOString().split("T")[0];
+
+async function loadSuppliers(){
+    const res = await fetch(BASE_URL+"/suppliers",{
+        headers:{
+            "Authorization":"Bearer "+token
+        }
+    });
+
+    const data = await res.json();
+    const select = document.getElementById("supplierSelect");
+
+    data.forEach(s=>{
+        const option = document.createElement("option");
+        option.value = s[0];
+        option.text = s[1];
+        select.appendChild(option);
+    });
+}
+
+function addRow(){
+    const container = document.getElementById("productRows");
+
+    const div = document.createElement("div");
+    div.className="row";
+
+    div.innerHTML = `
+        <input placeholder="Product ID" type="number" class="productId">
+        <input placeholder="Box Qty" type="number" class="boxQty" oninput="calculateTotal()">
+        <input placeholder="Rate/Box" type="number" class="rate" oninput="calculateTotal()">
+        <input placeholder="Total" type="number" class="lineTotal" readonly>
+        <button class="remove-btn" onclick="this.parentElement.remove(); calculateTotal();">X</button>
+    `;
+
+    container.appendChild(div);
+}
+
+function calculateTotal(){
+    let grand = 0;
+
+    document.querySelectorAll(".row").forEach(row=>{
+        const qty = row.querySelector(".boxQty").value;
+        const rate = row.querySelector(".rate").value;
+        const totalField = row.querySelector(".lineTotal");
+
+        const total = (qty*rate) || 0;
+        totalField.value = total;
+        grand += total;
+    });
+
+    document.getElementById("grandTotal").innerText = grand;
+}
+
+async function submitPurchase(){
+
+    const supplier_id = document.getElementById("supplierSelect").value;
+    const purchase_date = document.getElementById("purchaseDate").value;
+    const total_bill_amount = document.getElementById("grandTotal").innerText;
+
+    let items = [];
+
+    document.querySelectorAll(".row").forEach(row=>{
+        items.push({
+            product_id: parseInt(row.querySelector(".productId").value),
+            box_quantity: parseInt(row.querySelector(".boxQty").value),
+            purchase_rate_per_box: parseFloat(row.querySelector(".rate").value),
+            total_amount: parseFloat(row.querySelector(".lineTotal").value)
+        });
+    });
+
+    const body = {
+        purchase_date,
+        supplier_id: parseInt(supplier_id),
+        invoice_number: "WEB"+Date.now(),
+        total_bill_amount: parseFloat(total_bill_amount),
+        added_by: 1,
+        items
+    };
+
+    const res = await fetch(BASE_URL+"/add_purchase",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+token
+        },
+        body:JSON.stringify(body)
+    });
+
+    if(res.ok){
+        alert("Purchase Added Successfully");
+        window.location.reload();
+    }else{
+        alert("Error Adding Purchase");
+    }
+}
+
+loadSuppliers();
+addRow();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Enjoy Point ERP - Login</title>
+
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: 'Segoe UI', sans-serif;
+    }
+
+    body {
+        height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: radial-gradient(circle at top left, #0f2027, #203a43, #2c5364);
+    }
+
+    .login-container {
+        width: 350px;
+        padding: 40px;
+        border-radius: 15px;
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(15px);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        text-align: center;
+        color: white;
+    }
+
+    .login-container h2 {
+        margin-bottom: 30px;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+
+    .input-group {
+        margin-bottom: 20px;
+        text-align: left;
+    }
+
+    .input-group label {
+        font-size: 14px;
+        opacity: 0.8;
+    }
+
+    .input-group input {
+        width: 100%;
+        padding: 10px;
+        margin-top: 5px;
+        border-radius: 8px;
+        border: none;
+        outline: none;
+        background: rgba(255,255,255,0.1);
+        color: white;
+    }
+
+    .login-btn {
+        width: 100%;
+        padding: 12px;
+        border: none;
+        border-radius: 25px;
+        background: linear-gradient(135deg, #00c6ff, #0072ff);
+        color: white;
+        font-weight: bold;
+        cursor: pointer;
+        transition: 0.3s;
+    }
+
+    .login-btn:hover {
+        transform: scale(1.05);
+    }
+
+    .error {
+        margin-top: 15px;
+        color: #ff4d4d;
+        font-size: 14px;
+    }
+
+    @media(max-width: 400px) {
+        .login-container {
+            width: 90%;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="login-container">
+    <h2>ENJOY POINT ERP</h2>
+
+    <div class="input-group">
+        <label>Username</label>
+        <input type="text" id="username" />
+    </div>
+
+    <div class="input-group">
+        <label>Password</label>
+        <input type="password" id="password" />
+    </div>
+
+    <button class="login-btn" onclick="login()">Login</button>
+
+    <div class="error" id="errorMsg"></div>
+</div>
+
+<script>
+const BASE_URL = "http://127.0.0.1:8000";
+
+async function login() {
+    const username = document.getElementById("username").value;
+    const password = document.getElementById("password").value;
+
+    const formData = new URLSearchParams();
+    formData.append("username", username);
+    formData.append("password", password);
+
+    try {
+        const response = await fetch(BASE_URL + "/login", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded"
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            localStorage.setItem("token", data.access_token);
+            window.location.href = "dashboard.html";
+        } else {
+            document.getElementById("errorMsg").innerText = data.detail;
+        }
+
+    } catch (error) {
+        document.getElementById("errorMsg").innerText = "Server error!";
+    }
+}
+</script>
+
+</body>
+</html>

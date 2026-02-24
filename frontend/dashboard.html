@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Entry</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI;}
+
+body{
+    display:flex;
+    min-height:100vh;
+    background:linear-gradient(135deg,#0f2027,#203a43);
+    color:white;
+}
+
+/* SIDEBAR */
+.sidebar{
+    width:220px;
+    background:#1c2b36;
+    padding:20px;
+}
+
+.sidebar h2{
+    text-align:center;
+    margin-bottom:30px;
+}
+
+.menu-item{
+    padding:10px;
+    border-radius:6px;
+    margin-bottom:10px;
+    cursor:pointer;
+}
+
+.menu-item:hover{
+    background:#0072ff;
+}
+
+/* MAIN */
+.main{
+    flex:1;
+    padding:30px;
+}
+
+.card{
+    background:rgba(255,255,255,0.05);
+    backdrop-filter:blur(10px);
+    padding:20px;
+    border-radius:10px;
+}
+
+input,select{
+    padding:8px;
+    border-radius:5px;
+    border:none;
+    width:100%;
+}
+
+.row{
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr 1fr auto;
+    gap:10px;
+    margin-top:10px;
+}
+
+button{
+    padding:8px 15px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.add-btn{background:#0072ff;color:white;margin-top:10px;}
+.remove-btn{background:#ff4b2b;color:white;}
+.submit-btn{background:#00c6ff;color:white;margin-top:15px;}
+.back-btn{background:#444;color:white;margin-bottom:15px;}
+
+.total-box{
+    margin-top:15px;
+    text-align:right;
+    font-size:18px;
+}
+
+@media(max-width:768px){
+    .row{grid-template-columns:1fr;}
+    .sidebar{display:none;}
+}
+</style>
+</head>
+
+<body>
+
+<div class="sidebar">
+    <h2>ENJOY POINT</h2>
+    <div class="menu-item" onclick="goTo('dashboard.html')">Dashboard</div>
+    <div class="menu-item" onclick="goTo('products.html')">Products</div>
+    <div class="menu-item" onclick="goTo('users.html')">Users</div>
+</div>
+
+<div class="main">
+
+<button class="back-btn" onclick="goTo('dashboard.html')">⬅ Back</button>
+
+<h2>Purchase Entry</h2>
+
+<div class="card">
+
+<label>Invoice Number</label>
+<input type="text" id="invoiceInput">
+
+<br><br>
+
+<label>Supplier</label>
+<select id="supplierSelect"></select>
+
+<br><br>
+
+<label>Date</label>
+<input type="date" id="purchaseDate">
+
+<div id="productRows"></div>
+
+<button class="add-btn" onclick="addRow()">+ Add Product</button>
+
+<div class="total-box">
+Total: ₹ <span id="grandTotal">0</span>
+</div>
+
+<button class="submit-btn" onclick="submitPurchase()">Submit Purchase</button>
+
+</div>
+
+</div>
+
+<script>
+const BASE_URL="http://127.0.0.1:8000";
+const token=localStorage.getItem("token");
+
+if(!token){window.location.href="index.html";}
+
+document.getElementById("purchaseDate").value=new Date().toISOString().split("T")[0];
+
+let productsData=[];
+
+/* LOAD SUPPLIERS */
+async function loadSuppliers(){
+    const res=await fetch(BASE_URL+"/suppliers",{headers:{Authorization:"Bearer "+token}});
+    const data=await res.json();
+    const select=document.getElementById("supplierSelect");
+
+    data.forEach(s=>{
+        const opt=document.createElement("option");
+        opt.value=s[0];
+        opt.text=s[1];
+        select.appendChild(opt);
+    });
+}
+
+/* LOAD PRODUCTS */
+async function loadProducts(){
+    const res=await fetch(BASE_URL+"/products",{headers:{Authorization:"Bearer "+token}});
+    productsData=await res.json();
+}
+
+/* ADD ROW */
+function addRow(){
+    const container=document.getElementById("productRows");
+
+    const div=document.createElement("div");
+    div.className="row";
+
+    let options="";
+    productsData.forEach(p=>{
+        options+=`<option value="${p[0]}">${p[2]}</option>`;
+    });
+
+    div.innerHTML=`
+        <select class="productSelect" onchange="autoFillRate(this)">
+            ${options}
+        </select>
+        <input type="number" placeholder="Box Qty" class="boxQty" oninput="calculateTotal()">
+        <input type="number" placeholder="Rate/Box" class="rate" oninput="calculateTotal()">
+        <input type="number" class="lineTotal" readonly>
+        <button class="remove-btn" onclick="this.parentElement.remove();calculateTotal();">X</button>
+    `;
+
+    container.appendChild(div);
+}
+
+/* AUTO RATE FILL */
+function autoFillRate(select){
+    const row=select.parentElement;
+    const rateField=row.querySelector(".rate");
+
+    const product=productsData.find(p=>p[0]==select.value);
+    if(product){
+        rateField.value=product[6]; 
+        calculateTotal();
+    }
+}
+
+/* CALCULATE TOTAL */
+function calculateTotal(){
+    let grand=0;
+
+    document.querySelectorAll(".row").forEach(row=>{
+        const qty=row.querySelector(".boxQty").value;
+        const rate=row.querySelector(".rate").value;
+        const totalField=row.querySelector(".lineTotal");
+
+        const total=(qty*rate)||0;
+        totalField.value=total;
+        grand+=total;
+    });
+
+    document.getElementById("grandTotal").innerText=grand;
+}
+
+/* SUBMIT */
+async function submitPurchase(){
+
+    const supplier_id=parseInt(document.getElementById("supplierSelect").value);
+    const purchase_date=document.getElementById("purchaseDate").value;
+    const total_bill_amount=parseFloat(document.getElementById("grandTotal").innerText);
+    const invoice_number=document.getElementById("invoiceInput").value;
+
+    let items=[];
+
+    document.querySelectorAll(".row").forEach(row=>{
+        items.push({
+            product_id:parseInt(row.querySelector(".productSelect").value),
+            box_quantity:parseInt(row.querySelector(".boxQty").value),
+            purchase_rate_per_box:parseFloat(row.querySelector(".rate").value),
+            total_amount:parseFloat(row.querySelector(".lineTotal").value)
+        });
+    });
+
+    const body={
+        purchase_date,
+        supplier_id,
+        invoice_number,
+        total_bill_amount,
+        added_by:1,
+        items
+    };
+
+    const res=await fetch(BASE_URL+"/add_purchase",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+token
+        },
+        body:JSON.stringify(body)
+    });
+
+    if(res.ok){
+        alert("Purchase Added Successfully");
+        window.location.reload();
+    }else{
+        alert("Error Adding Purchase");
+    }
+}
+
+function goTo(page){window.location.href=page;}
+
+loadSuppliers();
+loadProducts().then(()=>addRow());
+</script>
+
+</body>
+</html>
