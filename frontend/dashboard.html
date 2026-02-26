@@ -1,57 +1,220 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard</title>
+<title>ERP Dashboard</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI;}
-body{background:#0f2027;color:white;}
-.navbar{
+
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Segoe UI;
+}
+
+body{
     display:flex;
-    justify-content:space-between;
-    padding:15px 30px;
+    background:#0f2027;
+    color:white;
+}
+
+/* SIDEBAR */
+
+.sidebar{
+    width:220px;
+    min-height:100vh;
     background:#1c2b36;
+    padding:20px;
 }
-button{
-    padding:8px 15px;
-    border:none;
+
+.sidebar h2{
+    margin-bottom:30px;
+    text-align:center;
+    color:#00c6ff;
+}
+
+.menu-item{
+    padding:12px;
     border-radius:6px;
+    margin-bottom:10px;
     cursor:pointer;
+    transition:0.3s;
 }
-.primary{background:#00c6ff;color:white;}
-.danger{background:#ff4b2b;color:white;}
-.container{padding:30px;}
+
+.menu-item:hover{
+    background:#0072ff;
+}
+
+/* MAIN */
+
+.main{
+    flex:1;
+    padding:30px;
+}
+
+.grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+    gap:20px;
+}
+
+.card{
+    background:#1c2b36;
+    padding:25px;
+    border-radius:12px;
+}
+
+.card h3{
+    color:#00c6ff;
+    margin-bottom:10px;
+}
+
+.card p{
+    font-size:22px;
+    font-weight:bold;
+}
+
+.table-box{
+    margin-top:30px;
+    background:#1c2b36;
+    padding:20px;
+    border-radius:12px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+th,td{
+    padding:10px;
+    border-bottom:1px solid #444;
+}
+
+th{
+    text-align:left;
+    color:#00c6ff;
+}
+
+.logout{
+    background:#ff4b2b;
+    text-align:center;
+}
+
+@media(max-width:768px){
+    .sidebar{
+        display:none;
+    }
+}
+
 </style>
 </head>
 
-<body onload="checkLogin()">
+<body>
 
-<div class="navbar">
-<h3>ENJOY POINT ERP</h3>
-<div>
-<button class="primary" onclick="location.href='add-product.html'">Add Product</button>
-<button class="primary" onclick="location.href='add-purchase.html'">Add Purchase</button>
-<button class="danger" onclick="logout()">Logout</button>
-</div>
+<div class="sidebar">
+
+<h2>ENJOY POINT</h2>
+
+<div class="menu-item" onclick="goTo('dashboard.html')">📊 Dashboard</div>
+<div class="menu-item" onclick="goTo('add-product.html')">➕ Add Product</div>
+<div class="menu-item" onclick="goTo('add-purchase.html')">🧾 Add Purchase</div>
+<div class="menu-item logout" onclick="logout()">🚪 Logout</div>
+
 </div>
 
-<div class="container">
-<h2>Dashboard</h2>
-<p>Welcome to your ERP system</p>
+<div class="main">
+
+<h2>📊 Dashboard</h2>
+
+<div class="grid">
+
+<div class="card">
+<h3>Total Purchase</h3>
+<p id="totalPurchase">₹ 0</p>
+</div>
+
+<div class="card">
+<h3>Today's Purchase</h3>
+<p id="todayPurchase">₹ 0</p>
+</div>
+
+<div class="card">
+<h3>Monthly Purchase</h3>
+<p id="monthlyPurchase">₹ 0</p>
+</div>
+
+</div>
+
+<div class="table-box">
+<h3>Top Purchased Products</h3>
+
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Total Boxes</th>
+</tr>
+</thead>
+<tbody id="topProducts"></tbody>
+</table>
+
+</div>
+
 </div>
 
 <script>
-function checkLogin(){
-    if(!localStorage.getItem("token")){
-        window.location.href="index.html";
-    }
+
+const token = localStorage.getItem("token");
+
+if(!token){
+    window.location.href="index.html";
 }
+
+function goTo(page){
+    window.location.href = page;
+}
+
 function logout(){
     localStorage.removeItem("token");
     window.location.href="index.html";
 }
+
+async function loadDashboard(){
+
+    const res = await fetch("http://127.0.0.1:8000/dashboard",{
+        headers:{
+            "Authorization":"Bearer "+token
+        }
+    });
+
+    const data = await res.json();
+
+    document.getElementById("totalPurchase").innerText =
+        "₹ " + data.total_purchase;
+
+    document.getElementById("todayPurchase").innerText =
+        "₹ " + data.today_purchase;
+
+    document.getElementById("monthlyPurchase").innerText =
+        "₹ " + data.monthly_purchase;
+
+    const tbody = document.getElementById("topProducts");
+    tbody.innerHTML="";
+
+    data.top_products.forEach(item=>{
+        tbody.innerHTML += `
+            <tr>
+                <td>${item[0]}</td>
+                <td>${item[1]}</td>
+            </tr>
+        `;
+    });
+}
+
+loadDashboard();
+
 </script>
 
 </body>

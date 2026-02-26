@@ -193,6 +193,53 @@ def add_supplier(name: str, user: dict = Depends(owner_required)):
     conn.commit()
     return {"message": "Supplier added"}
 
+
+@app.get("/dashboard")
+def dashboard(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    # Total Purchase
+    cursor.execute("SELECT COALESCE(SUM(total_bill_amount),0) FROM purchases")
+    total_purchase = cursor.fetchone()[0]
+
+    # Today's Purchase
+    cursor.execute("""
+        SELECT COALESCE(SUM(total_bill_amount),0)
+        FROM purchases
+        WHERE purchase_date = CURRENT_DATE
+    """)
+    today_purchase = cursor.fetchone()[0]
+
+    # Monthly Purchase
+    cursor.execute("""
+        SELECT COALESCE(SUM(total_bill_amount),0)
+        FROM purchases
+        WHERE DATE_TRUNC('month', purchase_date) =
+              DATE_TRUNC('month', CURRENT_DATE)
+    """)
+    monthly_purchase = cursor.fetchone()[0]
+
+    # Top 5 Purchased Products
+    cursor.execute("""
+        SELECT p.product_name, SUM(pd.box_quantity) as total_boxes
+        FROM purchase_details pd
+        JOIN products p ON p.product_id = pd.product_id
+        GROUP BY p.product_name
+        ORDER BY total_boxes DESC
+        LIMIT 5
+    """)
+    top_products = cursor.fetchall()
+
+    conn.close()
+
+    return {
+        "total_purchase": total_purchase,
+        "today_purchase": today_purchase,
+        "monthly_purchase": monthly_purchase,
+        "top_products": top_products
+    }
+
 # ================= PURCHASE APIs =================
 
 @app.get("/purchases")
