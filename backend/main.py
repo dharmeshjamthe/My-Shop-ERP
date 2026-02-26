@@ -1,3 +1,6 @@
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
@@ -14,6 +17,27 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 app = FastAPI()
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+
+app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+
+@app.get("/")
+def root():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
+@app.get("/dashboard-page")
+def dashboard_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "dashboard.html"))
+
+@app.get("/add-product-page")
+def add_product_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "add-product.html"))
+
+@app.get("/add-purchase-page")
+def add_purchase_page():
+    return FileResponse(os.path.join(FRONTEND_DIR, "add-purchase.html"))
 
 app.add_middleware(
     CORSMiddleware,
