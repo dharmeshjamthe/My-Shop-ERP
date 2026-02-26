@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Purchase Entry</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
+
+body{
+    background:#f2f2f2;
+    padding:20px;
+}
+
+.container{
+    max-width:1100px;
+    margin:auto;
+    background:white;
+    padding:20px;
+    border-radius:8px;
+    box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+h2{
+    text-align:center;
+    margin-bottom:20px;
+}
+
+.header-row{
+    display:grid;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:10px;
+    margin-bottom:15px;
+}
+
+.input-row{
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;
+    gap:8px;
+    margin-bottom:10px;
+}
+
+input, select{
+    padding:6px;
+    border:1px solid #ccc;
+    border-radius:4px;
+}
+
+button{
+    padding:8px 14px;
+    border:none;
+    cursor:pointer;
+    border-radius:4px;
+    font-weight:bold;
+}
+
+.green{background:green;color:white;}
+.red{background:red;color:white;}
+.blue{background:blue;color:white;}
+.orange{background:orange;color:black;}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
+
+table th, table td{
+    border:1px solid #ccc;
+    padding:8px;
+    text-align:center;
+}
+
+.total-section{
+    text-align:center;
+    margin-top:15px;
+    font-size:18px;
+    font-weight:bold;
+}
+
+.btn-row{
+    text-align:center;
+    margin-top:15px;
+}
+
+.btn-row button{
+    margin:5px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Purchase Entry</h2>
+
+<!-- HEADER -->
+<div class="header-row">
+    <input id="invoice" placeholder="Invoice No">
+    <input type="date" id="date">
+    <input id="supplier" placeholder="Supplier">
+</div>
+
+<!-- PRODUCT INPUT -->
+<div class="input-row">
+    <select id="productSelect"></select>
+    <input type="number" id="boxes" placeholder="Boxes">
+    <input type="number" id="totalAmount" placeholder="Total Amount">
+    <input id="finalRate" placeholder="Final Rate/Box" readonly>
+    <select id="gstType">
+        <option value="INCLUDED">INCLUDED</option>
+        <option value="EXTRA">EXTRA</option>
+    </select>
+    <input type="number" id="gstPercent" value="5">
+</div>
+
+<!-- TABLE -->
+<table id="purchaseTable">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Boxes</th>
+            <th>Final Total</th>
+            <th>Rate/Box</th>
+            <th>GST</th>
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<div class="total-section">
+    Total: ₹ <span id="grandTotal">0</span>
+</div>
+
+<div class="btn-row">
+    <button class="green" onclick="addItem()">Add Item</button>
+    <button class="red" onclick="deleteItem()">Delete Item</button>
+    <button class="blue" onclick="saveInvoice()">Save Invoice</button>
+    <button class="orange" onclick="location.href='add-product.html'">+ Add Product</button>
+</div>
+
+</div>
+
+<script>
+const BASE_URL="http://127.0.0.1:8000";
+let products=[];
+let items=[];
+
+document.getElementById("date").value=new Date().toISOString().split("T")[0];
+
+async function loadProducts(){
+    const token=localStorage.getItem("token");
+    const res=await fetch(BASE_URL+"/products",{headers:{Authorization:"Bearer "+token}});
+    products=await res.json();
+
+    const select=document.getElementById("productSelect");
+    products.forEach(p=>{
+        const opt=document.createElement("option");
+        opt.value=p[0];
+        opt.text=p[2];
+        select.appendChild(opt);
+    });
+}
+
+function calculateRate(){
+    const boxes=parseFloat(boxesInput.value)||0;
+    const total=parseFloat(totalAmount.value)||0;
+    const gstTypeVal=gstType.value;
+    const gst=parseFloat(gstPercent.value)||0;
+
+    let finalTotal=total;
+
+    if(gstTypeVal==="EXTRA"){
+        finalTotal=total*(1+gst/100);
+    }
+
+    const rate=boxes?finalTotal/boxes:0;
+    finalRate.value=rate.toFixed(2);
+}
+
+const boxesInput=document.getElementById("boxes");
+const totalAmount=document.getElementById("totalAmount");
+const gstType=document.getElementById("gstType");
+const gstPercent=document.getElementById("gstPercent");
+const finalRate=document.getElementById("finalRate");
+
+boxesInput.oninput=calculateRate;
+totalAmount.oninput=calculateRate;
+gstType.onchange=calculateRate;
+gstPercent.oninput=calculateRate;
+
+function addItem(){
+    const productName=productSelect.options[productSelect.selectedIndex].text;
+    const boxes=parseFloat(boxesInput.value);
+    const total=parseFloat(totalAmount.value);
+    const gstTypeVal=gstType.value;
+    const gst=parseFloat(gstPercent.value)||0;
+
+    if(!boxes || !total){
+        alert("Enter valid data");
+        return;
+    }
+
+    let finalTotal=total;
+    if(gstTypeVal==="EXTRA"){
+        finalTotal=total*(1+gst/100);
+    }
+
+    const rate=finalTotal/boxes;
+
+    items.push(finalTotal);
+
+    const row=document.createElement("tr");
+    row.innerHTML=`
+        <td>${productName}</td>
+        <td>${boxes}</td>
+        <td>${finalTotal.toFixed(2)}</td>
+        <td>${rate.toFixed(2)}</td>
+        <td>${gstTypeVal}</td>
+    `;
+
+    document.querySelector("#purchaseTable tbody").appendChild(row);
+    updateTotal();
+}
+
+function updateTotal(){
+    const total=items.reduce((a,b)=>a+b,0);
+    document.getElementById("grandTotal").innerText=total.toFixed(2);
+}
+
+function deleteItem(){
+    const table=document.querySelector("#purchaseTable tbody");
+    if(table.lastChild){
+        table.removeChild(table.lastChild);
+        items.pop();
+        updateTotal();
+    }
+}
+
+async function saveInvoice(){
+
+    if(items.length === 0){
+        alert("Add at least one item");
+        return;
+    }
+
+    const token = localStorage.getItem("token");
+
+    const invoice_number = document.getElementById("invoice").value;
+    const purchase_date = document.getElementById("date").value;
+    const supplier = document.getElementById("supplier").value;
+
+    const total_bill_amount = items.reduce((a,b)=>a+b,0);
+
+    let purchaseItems = [];
+
+    document.querySelectorAll("#purchaseTable tbody tr").forEach(row=>{
+        purchaseItems.push({
+            product_id: productSelect.value,
+            box_quantity: parseInt(row.children[1].innerText),
+            purchase_rate_per_box: parseFloat(row.children[3].innerText),
+            total_amount: parseFloat(row.children[2].innerText)
+        });
+    });
+
+    const body = {
+        purchase_date,
+        supplier_id: 1,   // for now static (later dynamic)
+        invoice_number,
+        total_bill_amount,
+        added_by: 1,
+        items: purchaseItems
+    };
+
+    const res = await fetch("http://127.0.0.1:8000/add_purchase",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+token
+        },
+        body:JSON.stringify(body)
+    });
+
+    if(res.ok){
+        alert("Invoice Saved Successfully");
+        location.reload();
+    }else{
+        const err = await res.json();
+        console.log("Backend Error:", err);
+        alert("Backend Error: " + JSON.stringify(err));
+    }
+}
+
+loadProducts();
+</script>
+
+</body>
+</html>

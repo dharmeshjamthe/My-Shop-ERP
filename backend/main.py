@@ -99,6 +99,21 @@ class Product(BaseModel):
     pieces_per_box: int
     dealer_rate_with_gst: float
     mrp_per_piece: float
+from typing import List
+
+class PurchaseItem(BaseModel):
+    product_id: int
+    box_quantity: int
+    purchase_rate_per_box: float
+    total_amount: float
+
+class PurchaseCreate(BaseModel):
+    purchase_date: str
+    supplier_id: int
+    invoice_number: str
+    total_bill_amount: float
+    added_by: int
+    items: List[PurchaseItem]
 
 # ================= PRODUCT APIs =================
 
@@ -201,6 +216,50 @@ def delete_purchase(id: int, user: dict = Depends(owner_required)):
     cursor.execute("DELETE FROM purchases WHERE purchase_id=%s", (id,))
     conn.commit()
     return {"message": "Purchase deleted"}
+
+@app.post("/add_purchase")
+def add_purchase(purchase: PurchaseCreate, user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        # Insert into purchases table
+        cursor.execute("""
+            INSERT INTO purchases
+            (purchase_date, supplier_id, invoice_number, total_bill_amount, added_by)
+            VALUES (%s,%s,%s,%s,%s)
+            RETURNING purchase_id
+        """, (
+            purchase.purchase_date,
+            purchase.supplier_id,
+            purchase.invoice_number,
+            purchase.total_bill_amount,
+            purchase.added_by
+        ))
+
+        purchase_id = cursor.fetchone()[0]
+
+        # Insert purchase details
+        for item in purchase.items:
+            cursor.execute("""
+                INSERT INTO purchase_details
+                (purchase_id, product_id, box_quantity,
+                 purchase_rate_per_box, total_amount)
+                VALUES (%s,%s,%s,%s,%s)
+            """, (
+                purchase_id,
+                item.product_id,
+                item.box_quantity,
+                item.purchase_rate_per_box,
+                item.total_amount
+            ))
+
+        conn.commit()
+        return {"message": "Purchase Added Successfully"}
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ================= USER APIs =================
 

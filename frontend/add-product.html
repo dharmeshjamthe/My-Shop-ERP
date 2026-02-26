@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Add Product</title>
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI;}
+body{background:#0f2027;color:white;}
+.navbar{display:flex;justify-content:space-between;padding:15px 30px;background:#1c2b36;}
+.container{padding:30px;}
+.card{background:#1c2b36;padding:20px;border-radius:10px;max-width:600px;}
+input{width:100%;padding:8px;margin-top:5px;border:none;border-radius:6px;}
+button{padding:10px 15px;border:none;border-radius:6px;margin-top:10px;background:#00c6ff;color:white;cursor:pointer;}
+</style>
+</head>
+
+<body onload="checkLogin()">
+
+<div class="navbar">
+<h3>ENJOY POINT ERP</h3>
+<button onclick="location.href='dashboard.html'">Back</button>
+</div>
+
+<div class="container">
+<div class="card">
+<h2>Add Product</h2>
+
+<input id="brand" placeholder="Brand">
+<input id="product_name" placeholder="Product Name">
+<input id="category" placeholder="Category">
+<input id="pack_size" placeholder="Pack Size">
+<input type="number" id="pieces_per_box" placeholder="Pieces Per Box">
+<input type="number" id="dealer_rate_with_gst" placeholder="Dealer Rate With GST">
+<input type="number" id="mrp_per_piece" placeholder="MRP Per Piece">
+
+<button onclick="addProduct()">Save Product</button>
+</div>
+</div>
+
+<script>
+const BASE_URL="http://127.0.0.1:8000";
+function checkLogin(){if(!localStorage.getItem("token"))window.location.href="index.html";}
+
+async function addProduct(){
+    const token=localStorage.getItem("token");
+
+    const body={
+        brand:brand.value,
+        product_name:product_name.value,
+        category:category.value,
+        pack_size:pack_size.value,
+        pieces_per_box:parseInt(pieces_per_box.value),
+        dealer_rate_with_gst:parseFloat(dealer_rate_with_gst.value),
+        mrp_per_piece:parseFloat(mrp_per_piece.value)
+    };
+
+    const res=await fetch(BASE_URL+"/products",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+token
+        },
+        body:JSON.stringify(body)
+    });
+
+    if(res.ok){alert("Product Added");location.reload();}
+    else{alert("Error");}
+}
+</script>
+
+</body>
+</html>
