@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Closing</title>
+
+<style>
+body{
+    font-family:Segoe UI;
+    background:#0f2027;
+    color:white;
+    padding:20px;
+}
+
+.container{
+    max-width:1000px;
+    margin:auto;
+}
+
+.card{
+    background:#1c2b36;
+    padding:20px;
+    border-radius:10px;
+    margin-bottom:20px;
+}
+
+input{
+    padding:8px;
+    width:100%;
+    margin-bottom:10px;
+    border-radius:5px;
+    border:none;
+}
+
+button{
+    padding:8px 15px;
+    border:none;
+    border-radius:5px;
+    cursor:pointer;
+}
+
+.add-btn{background:#00c6ff;color:white;}
+.delete-btn{background:#ff4b2b;color:white;}
+.save-btn{background:#0072ff;color:white;}
+
+.expense-row{
+    display:grid;
+    grid-template-columns:2fr 1fr auto;
+    gap:10px;
+    margin-bottom:10px;
+}
+
+.summary{
+    font-size:18px;
+    margin-top:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h2>Daily Closing Entry</h2>
+
+<div class="card">
+
+<label>Date</label>
+<input type="date" id="date">
+
+<label>Opening Cash</label>
+<input type="number" id="opening">
+
+<label>Closing Cash</label>
+<input type="number" id="closing">
+
+<h3>Expenses</h3>
+<div id="expenseContainer"></div>
+
+<button class="add-btn" onclick="addExpense()">+ Add Expense</button>
+
+<hr>
+
+<label>PhonePe Amount</label>
+<input type="number" id="phonepe" value="0">
+
+<label>Paytm Amount</label>
+<input type="number" id="paytm" value="0">
+
+<hr>
+
+<div class="summary">
+<div>Total Expense: ₹ <span id="totalExpense">0</span></div>
+<div>Cash Sales: ₹ <span id="cashSales">0</span></div>
+<div>Total Sales: ₹ <span id="totalSales">0</span></div>
+</div>
+
+<br>
+<button class="save-btn" onclick="saveData()">Save Daily Closing</button>
+
+</div>
+
+</div>
+
+<script>
+
+const BASE_URL="http://127.0.0.1:8000";
+const token=localStorage.getItem("token");
+
+if(!token){
+    window.location.href="index.html";
+}
+
+document.getElementById("date").value=new Date().toISOString().split("T")[0];
+
+function addExpense(){
+    const div=document.createElement("div");
+    div.className="expense-row";
+
+    div.innerHTML=`
+        <input placeholder="Description" class="desc">
+        <input type="number" placeholder="Amount" class="amt" oninput="calculate()">
+        <button class="delete-btn" onclick="this.parentElement.remove();calculate();">X</button>
+    `;
+
+    document.getElementById("expenseContainer").appendChild(div);
+}
+
+function calculate(){
+    const opening=parseFloat(document.getElementById("opening").value)||0;
+    const closing=parseFloat(document.getElementById("closing").value)||0;
+    const phonepe=parseFloat(document.getElementById("phonepe").value)||0;
+    const paytm=parseFloat(document.getElementById("paytm").value)||0;
+
+    let totalExpense=0;
+
+    document.querySelectorAll(".amt").forEach(input=>{
+        totalExpense+=parseFloat(input.value)||0;
+    });
+
+    const cashSales=closing-opening+totalExpense;
+    const totalSales=cashSales+phonepe+paytm;
+
+    document.getElementById("totalExpense").innerText=totalExpense.toFixed(2);
+    document.getElementById("cashSales").innerText=cashSales.toFixed(2);
+    document.getElementById("totalSales").innerText=totalSales.toFixed(2);
+}
+
+document.querySelectorAll("input").forEach(input=>{
+    input.addEventListener("input",calculate);
+});
+
+async function saveData(){
+
+    const date=document.getElementById("date").value;
+    const opening=parseFloat(document.getElementById("opening").value)||0;
+    const closing=parseFloat(document.getElementById("closing").value)||0;
+    const phonepe=parseFloat(document.getElementById("phonepe").value)||0;
+    const paytm=parseFloat(document.getElementById("paytm").value)||0;
+
+    let expenses=[];
+
+    document.querySelectorAll(".expense-row").forEach(row=>{
+        const desc=row.querySelector(".desc").value;
+        const amt=parseFloat(row.querySelector(".amt").value)||0;
+
+        if(desc && amt>0){
+            expenses.push({
+                description:desc,
+                amount:amt
+            });
+        }
+    });
+
+    const body={
+        date:date,
+        opening_cash:opening,
+        closing_cash:closing,
+        phonepe_amount:phonepe,
+        paytm_amount:paytm,
+        expenses:expenses
+    };
+
+    const res=await fetch(BASE_URL+"/daily-closing",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json",
+            "Authorization":"Bearer "+token
+        },
+        body:JSON.stringify(body)
+    });
+
+    const data=await res.json();
+
+    if(res.ok){
+        alert("Saved Successfully");
+        window.location.reload();
+    }else{
+        alert("Error: "+data.detail);
+    }
+}
+
+</script>
+
+</body>
+</html>

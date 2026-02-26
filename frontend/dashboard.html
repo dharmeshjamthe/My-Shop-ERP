@@ -120,6 +120,7 @@ th{
 <div class="menu-item" onclick="goTo('dashboard.html')">📊 Dashboard</div>
 <div class="menu-item" onclick="goTo('add-product.html')">➕ Add Product</div>
 <div class="menu-item" onclick="goTo('add-purchase.html')">🧾 Add Purchase</div>
+<div class="menu-item" onclick="goTo('daily-closing.html')">Daily Closing</div>
 <div class="menu-item logout" onclick="logout()">🚪 Logout</div>
 
 </div>
@@ -144,6 +145,48 @@ th{
 <h3>Monthly Purchase</h3>
 <p id="monthlyPurchase">₹ 0</p>
 </div>
+<hr>
+
+<div class="card">
+    <h3>Online Collection (This Month)</h3>
+    <div>PhonePe: ₹ <span id="phonepeTotal">Loading...</span></div>
+    <div>Paytm: ₹ <span id="paytmTotal">Loading...</span></div>
+</div>
+
+<div class="card">
+<h3>Yesterday Sales</h3>
+<div id="yesterdayData">Loading...</div>
+</div>
+
+<div class="card">
+<h3>This Month Total Sales</h3>
+<div id="monthData">Loading...</div>
+</div>
+
+<div class="card">
+<h3>Last 30 Days</h3>
+<button onclick="loadHistory()">Show History</button>
+</div>
+
+<div class="card">
+    <h3>Total Expenses (This Month)</h3>
+    <div>₹ <span id="expenseTotal">Loading...</span></div>
+</div>
+
+<div class="popup" id="historyPopup" style="display:none;">
+<h3>Last 30 Days Sales </h3>
+<table id="historyTable">
+<tr>
+<th>Date</th>
+<th>Cash</th>
+<th>PhonePe</th>
+<th>Paytm</th>
+<th>Total</th>
+</tr>
+</table>
+<br>
+<button onclick="closePopup()">Close</button>
+</div>
 
 </div>
 
@@ -162,7 +205,6 @@ th{
 
 </div>
 
-</div>
 
 <script>
 
@@ -214,6 +256,84 @@ async function loadDashboard(){
 }
 
 loadDashboard();
+
+async function loadYesterday(){
+    const res=await fetch(BASE_URL+"/daily-closing/yesterday",{
+        headers:{Authorization:"Bearer "+token}
+    });
+    const data=await res.json();
+
+    if(data){
+        document.getElementById("yesterdayData").innerHTML=`
+            Cash Sales: ₹${data[4]} <br>
+            PhonePe: ₹${data[5]} <br>
+            Paytm: ₹${data[6]} <br>
+            Total Sales: ₹${data[7]}
+        `;
+    }else{
+        document.getElementById("yesterdayData").innerText="No Data";
+    }
+}
+
+async function loadMonth(){
+    const res=await fetch(BASE_URL+"/daily-closing/month",{
+        headers:{Authorization:"Bearer "+token}
+    });
+    const data=await res.json();
+
+    document.getElementById("monthData").innerText=
+        "₹ "+(data.monthly_sales||0);
+}
+
+async function loadHistory(){
+    const res=await fetch(BASE_URL+"/daily-closing/last30",{
+        headers:{Authorization:"Bearer "+token}
+    });
+    const data=await res.json();
+
+    const table=document.getElementById("historyTable");
+
+    table.innerHTML = `
+        <tr>
+            <th>Date</th>
+            <th>Cash</th>
+            <th>PhonePe</th>
+            <th>Paytm</th>
+            <th>Total</th>
+        </tr>
+    `;
+
+    data.forEach(row=>{
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+            <td>${row[1]}</td>
+            <td>${row[4]}</td>
+            <td>${row[5]}</td>
+            <td>${row[6]}</td>
+            <td>${row[7]}</td>
+        `;
+        table.appendChild(tr);
+    });
+
+    document.getElementById("historyPopup").style.display="block";
+}
+
+function closePopup(){
+    document.getElementById("historyPopup").style.display="none";
+}
+loadYesterday();
+loadMonth();
+
+async function loadExpense(){
+    const res=await fetch(BASE_URL+"/daily-closing/month-expense",{
+        headers:{Authorization:"Bearer "+token}
+    });
+    const data=await res.json();
+
+    document.getElementById("expenseTotal").innerText =
+        (data.monthly_expense||0).toFixed(2);
+}
+loadExpense();
 
 </script>
 

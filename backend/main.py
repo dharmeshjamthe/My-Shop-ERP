@@ -124,6 +124,20 @@ class Product(BaseModel):
     dealer_rate_with_gst: float
     mrp_per_piece: float
 from typing import List
+from typing import List
+from datetime import date
+
+class ExpenseItem(BaseModel):
+    description: str
+    amount: float
+
+class DailyClosingCreate(BaseModel):
+    date: date
+    opening_cash: float
+    closing_cash: float
+    phonepe_amount: float
+    paytm_amount: float
+    expenses: List[ExpenseItem]
 
 class PurchaseItem(BaseModel):
     product_id: int
@@ -364,3 +378,113 @@ def get_users(user: dict = Depends(owner_required)):
     cursor = conn.cursor()
     cursor.execute("SELECT user_id, name, username, role FROM users")
     return cursor.fetchall()
+@app.post("/daily-closing")
+def create_daily_closing(data: DailyClosingCreate, user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        total_expense = sum(item.amount for item in data.expenses)
+
+        cash_sales = data.closing_cash - data.opening_cash + total_expense
+
+        total_sales = cash_sales + data.phonepe_amount + data.paytm_amount
+
+        cursor.execute("""
+            INSERT INTO daily_closing
+            (date, opening_cash, closing_cash, cash_sales,
+             phonepe_amount, paytm_amount, total_sales)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, (
+            data.date,
+            data.opening_cash,
+            data.closing_cash,
+            cash_sales,
+            data.phonepe_amount,
+            data.paytm_amount,
+            total_sales
+        ))
+
+        for item in data.expenses:
+            cursor.execute("""
+                INSERT INTO daily_expenses
+                (date, description, amount)
+                VALUES (%s,%s,%s)
+            """, (
+                data.date,
+                item.description,
+                item.amount
+            ))
+
+        conn.commit()
+
+        return {
+            "message": "Daily Closing Saved",
+            "cash_sales": cash_sales,
+            "total_expense": total_expense,
+            "total_sales": total_sales
+        }
+
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/daily-closing/month-phonepe")
+def month_phonepe(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT SUM(phonepe_amount)
+        FROM daily_closing
+        WHERE date_trunc('month', date) = date_trunc('month', CURRENT_DATE)
+    """)
+
+    result = cursor.fetchone()[0] or 0
+    return {"phonepe_total": result}
+@app.get("/daily-closing/month-paytm")
+def month_paytm(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT SUM(paytm_amount)
+        FROM daily_closing
+        WHERE date_trunc('month', date) = date_trunc('month', CURRENT_DATE)
+    """)
+
+    result = cursor.fetchone()[0] or 0
+    return {"paytm_total": result}
+@app.get("/daily-closing/chart-data")
+def chart_data(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT date, total_sales
+        FROM daily_closing
+        WHERE date >= CURRENT_DATE - INTERVAL '30 day'
+        ORDER BY date ASC
+    """)
+
+    rows = cursor.fetchall()
+
+    data = [
+        {"date": str(row[0]), "total": float(row[1])}
+        for row in rows
+    ]
+
+    return data
+@app.get("/daily-closing/month-expense")
+def month_expense(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT SUM(amount)
+        FROM daily_expenses
+        WHERE date_trunc('month', date) = date_trunc('month', CURRENT_DATE)
+    """)
+
+    result = cursor.fetchone()[0] or 0
+    return {"monthly_expense": result}
