@@ -3,16 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Add Product</title>
+<title>Add Products</title>
 
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI;}
 body{background:#0f2027;color:white;}
 .navbar{display:flex;justify-content:space-between;padding:15px 30px;background:#1c2b36;}
 .container{padding:30px;}
-.card{background:#1c2b36;padding:20px;border-radius:10px;max-width:600px;}
-input{width:100%;padding:8px;margin-top:5px;border:none;border-radius:6px;}
-button{padding:10px 15px;border:none;border-radius:6px;margin-top:10px;background:#00c6ff;color:white;cursor:pointer;}
+.card{background:#1c2b36;padding:20px;border-radius:10px;}
+input{width:100%;padding:10px;margin-top:10px;border:none;border-radius:6px;}
+button{padding:10px 15px;border:none;border-radius:6px;margin-top:12px;cursor:pointer;font-weight:600;}
+.add-btn{background:green;color:white;}
+.save-btn{background:#00c6ff;color:white;}
+button:disabled{opacity:0.6;cursor:not-allowed;}
+table{width:100%;margin-top:20px;border-collapse:collapse;background:white;color:black;}
+th,td{padding:8px;border:1px solid #ddd;text-align:center;}
+th{background:#eee;}
+.delete-btn{background:red;color:white;border:none;padding:5px 8px;border-radius:4px;cursor:pointer;}
 </style>
 </head>
 
@@ -25,7 +32,7 @@ button{padding:10px 15px;border:none;border-radius:6px;margin-top:10px;backgroun
 
 <div class="container">
 <div class="card">
-<h2>Add Product</h2>
+<h2>Add Multiple Products</h2>
 
 <input id="brand" placeholder="Brand">
 <input id="product_name" placeholder="Product Name">
@@ -35,38 +42,141 @@ button{padding:10px 15px;border:none;border-radius:6px;margin-top:10px;backgroun
 <input type="number" id="dealer_rate_with_gst" placeholder="Dealer Rate With GST">
 <input type="number" id="mrp_per_piece" placeholder="MRP Per Piece">
 
-<button onclick="addProduct()">Save Product</button>
+<button class="add-btn" onclick="addToList()">Add To List</button>
+
+<table id="productTable">
+<thead>
+<tr>
+<th>Brand</th>
+<th>Name</th>
+<th>Category</th>
+<th>Pack</th>
+<th>Pieces</th>
+<th>Dealer</th>
+<th>MRP</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+
+<button class="save-btn" onclick="saveAll()">Save All Products</button>
+
 </div>
 </div>
 
 <script>
 const BASE_URL="http://127.0.0.1:8000";
-function checkLogin(){if(!localStorage.getItem("token"))window.location.href="index.html";}
+let productList=[];
 
-async function addProduct(){
-    const token=localStorage.getItem("token");
+/* ---------- LOGIN CHECK ---------- */
+function checkLogin(){
+    if(!localStorage.getItem("token")){
+        window.location.href="index.html";
+    }
+}
 
-    const body={
-        brand:brand.value,
-        product_name:product_name.value,
-        category:category.value,
-        pack_size:pack_size.value,
-        pieces_per_box:parseInt(pieces_per_box.value),
-        dealer_rate_with_gst:parseFloat(dealer_rate_with_gst.value),
-        mrp_per_piece:parseFloat(mrp_per_piece.value)
+/* ---------- ADD TO LIST ---------- */
+function addToList(){
+
+    const brand = document.getElementById("brand").value.trim();
+    const name = document.getElementById("product_name").value.trim();
+    const category = document.getElementById("category").value.trim();
+    const pack = document.getElementById("pack_size").value.trim();
+    const pieces = document.getElementById("pieces_per_box").value;
+    const dealer = document.getElementById("dealer_rate_with_gst").value;
+    const mrp = document.getElementById("mrp_per_piece").value;
+
+    if(!brand || !name){
+        alert("Brand & Product Name required");
+        return;
+    }
+
+    const product={
+        brand: brand,
+        product_name: name,
+        category: category,
+        pack_size: pack,
+        pieces_per_box: parseInt(pieces) || 0,
+        dealer_rate_with_gst: parseFloat(dealer) || 0,
+        mrp_per_piece: parseFloat(mrp) || 0
     };
 
-    const res=await fetch(BASE_URL+"/products",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json",
-            "Authorization":"Bearer "+token
-        },
-        body:JSON.stringify(body)
-    });
+    productList.push(product);
+    renderTable();
+    clearInputs();
+}
 
-    if(res.ok){alert("Product Added");location.reload();}
-    else{alert("Error");}
+/* ---------- RENDER TABLE ---------- */
+function renderTable(){
+    const tbody=document.querySelector("#productTable tbody");
+    tbody.innerHTML="";
+
+    productList.forEach((p,index)=>{
+        const row=`
+        <tr>
+            <td>${p.brand}</td>
+            <td>${p.product_name}</td>
+            <td>${p.category}</td>
+            <td>${p.pack_size}</td>
+            <td>${p.pieces_per_box}</td>
+            <td>${p.dealer_rate_with_gst}</td>
+            <td>${p.mrp_per_piece}</td>
+            <td><button class="delete-btn" onclick="removeItem(${index})">X</button></td>
+        </tr>`;
+        tbody.innerHTML+=row;
+    });
+}
+
+/* ---------- REMOVE ITEM ---------- */
+function removeItem(index){
+    productList.splice(index,1);
+    renderTable();
+}
+
+/* ---------- CLEAR INPUTS ---------- */
+function clearInputs(){
+    document.querySelectorAll("input").forEach(i=>i.value="");
+}
+
+/* ---------- SAVE ALL PRODUCTS ---------- */
+async function saveAll(){
+
+    if(productList.length===0){
+        alert("No products to save");
+        return;
+    }
+
+    const token=localStorage.getItem("token");
+    const btn=document.querySelector(".save-btn");
+
+    btn.innerText="Saving...";
+    btn.disabled=true;
+
+    try{
+        const response=await fetch(BASE_URL+"/products/bulk",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json",
+                "Authorization":"Bearer "+token
+            },
+            body:JSON.stringify(productList)
+        });
+
+        if(response.ok){
+            alert("Saved Successfully");
+            productList=[];
+            renderTable();
+        }else{
+            alert("Server Error");
+        }
+
+    }catch(error){
+        alert("Connection Error");
+    }
+
+    btn.innerText="Save All Products";
+    btn.disabled=false;
 }
 </script>
 

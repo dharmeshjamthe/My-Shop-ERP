@@ -488,3 +488,67 @@ def month_expense(user: dict = Depends(get_current_user)):
 
     result = cursor.fetchone()[0] or 0
     return {"monthly_expense": result}
+@app.get("/daily-closing/cash-vs-online")
+def cash_vs_online(user: dict = Depends(get_current_user)):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT 
+            SUM(cash_sales),
+            SUM(phonepe_amount + paytm_amount)
+        FROM daily_closing
+        WHERE date_trunc('month', date) = date_trunc('month', CURRENT_DATE)
+    """)
+
+    result = cursor.fetchone()
+
+    cash = result[0] or 0
+    online = result[1] or 0
+
+    return {
+        "cash_total": float(cash),
+        "online_total": float(online)
+    }
+@app.post("/products/bulk")
+def bulk_add_products(products: List[Product]):
+
+    if not products:
+        raise HTTPException(status_code=400, detail="No products received")
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        data = [
+            (
+                p.brand or "",
+                p.product_name or "",
+                p.category or "",
+                p.pack_size or "",
+                p.pieces_per_box or 0,
+                p.dealer_rate_with_gst or 0,
+                p.mrp_per_piece or 0
+            )
+            for p in products
+        ]
+
+        cursor.executemany("""
+            INSERT INTO products
+            (brand, product_name, category, pack_size, pieces_per_box,
+             dealer_rate_with_gst, mrp_per_piece)
+            VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, data)
+
+        conn.commit()
+
+        return {"message": "Products added successfully"}
+
+    except Exception as e:
+        print("ERROR:", e)
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        cursor.close()
+        conn.close()
