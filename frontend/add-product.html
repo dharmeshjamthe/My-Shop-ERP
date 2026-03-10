@@ -66,14 +66,27 @@ th{background:#eee;}
 </div>
 
 <script>
-const BASE_URL="https://my-shop-erp.onrender.com";
-let productList=[];
 
-/* ---------- LOGIN CHECK ---------- */
+const BASE_URL = "https://my-shop-erp.onrender.com";
+
+/* ⭐ ADDED: product list array */
+let productList = [];
+
+/* ⭐ ADDED: checkLogin function */
 function checkLogin(){
-    if(!localStorage.getItem("token")){
-        window.location.href="index.html";
-    }
+
+const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+if(!token){
+window.location.href="index.html";
+}
+
+}
+
+const token = localStorage.getItem("token") || sessionStorage.getItem("token");
+
+if(!token){
+    window.location.href="index.html";
 }
 
 /* ---------- ADD TO LIST ---------- */

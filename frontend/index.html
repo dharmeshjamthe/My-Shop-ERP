@@ -1,94 +1,371 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="manifest" href="/static/manifest.json">
-<meta name="theme-color" content="#00c6ff">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Enjoy Point ERP - Login</title>
 
 <style>
-*{margin:0;padding:0;box-sizing:border-box;font-family:Segoe UI;}
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+
 body{
     height:100vh;
     display:flex;
     justify-content:center;
     align-items:center;
-    background:linear-gradient(135deg,#0f2027,#203a43);
+    overflow:hidden;
+    background:#0f2027;
     color:white;
+    transition:0.4s;
 }
+
+/* Particle background */
+canvas{
+    position:fixed;
+    top:0;
+    left:0;
+    z-index:-1;
+}
+
+/* Card */
 .card{
     background:rgba(255,255,255,0.05);
-    backdrop-filter:blur(15px);
-    padding:35px;
-    border-radius:15px;
-    width:350px;
+    backdrop-filter:blur(25px);
+    padding:45px 40px 35px 40px;
+    border-radius:20px;
+    width:400px;
     text-align:center;
+    position:relative;
+    padding-top:95px;
+    box-shadow:0 0 40px rgba(0,198,255,0.4);
 }
+
+/* Logo */
+.logo-circle{
+    width:120px;
+    height:120px;
+    border-radius:50%;
+    background:linear-gradient(135deg,#00c6ff,#0072ff);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:absolute;
+    top:-60px;
+    left:50%;
+    transform:translateX(-50%);
+    box-shadow:0 0 30px #00c6ff;
+}
+
+.logo-circle img{
+    width:80px;
+    height:80px;
+    border-radius:50%;
+}
+
+/* Headline */
+h2{
+    margin-bottom:25px;
+    letter-spacing:1px;
+}
+
+/* Inputs */
+.input-group{
+    position:relative;
+    margin-bottom:18px;
+}
+
 input{
     width:100%;
-    padding:10px;
-    margin-top:8px;
-    border-radius:6px;
+    padding:12px 40px 12px 12px;
+    border-radius:8px;
     border:none;
+    outline:none;
+    background:rgba(255,255,255,0.1);
+    color:white;
 }
+
+input:focus{
+    box-shadow:0 0 10px #00c6ff;
+}
+
+/* Eye icon */
+.toggle-pass{
+    position:absolute;
+    right:12px;
+    top:50%;
+    transform:translateY(-50%);
+    cursor:pointer;
+    font-size:14px;
+    opacity:0.7;
+}
+
+/* Remember + forgot row */
+.options{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    font-size:14px;
+    margin-bottom:20px;
+}
+
+.options label{
+    display:flex;
+    align-items:center;
+    gap:6px;
+}
+
+.options a{
+    color:#00c6ff;
+    text-decoration:none;
+}
+
+.options a:hover{
+    text-decoration:underline;
+}
+
+/* Button */
 button{
-    margin-top:15px;
-    padding:10px;
+    padding:12px;
     width:100%;
     border:none;
-    border-radius:6px;
-    background:#00c6ff;
+    border-radius:8px;
+    background:linear-gradient(135deg,#00c6ff,#0072ff);
     color:white;
     cursor:pointer;
+    font-weight:bold;
+    transition:0.3s;
+    position:relative;
 }
-button:hover{opacity:0.9;}
-.error{color:#ff4b2b;margin-top:10px;}
+
+button:hover{
+    transform:scale(1.05);
+    box-shadow:0 0 20px #00c6ff;
+}
+
+button.loading{
+    pointer-events:none;
+    opacity:0.8;
+}
+
+/* Spinner */
+.spinner{
+    border:3px solid rgba(255,255,255,0.3);
+    border-top:3px solid white;
+    border-radius:50%;
+    width:18px;
+    height:18px;
+    animation:spin 1s linear infinite;
+    position:absolute;
+    right:15px;
+    top:50%;
+    transform:translateY(-50%);
+    display:none;
+}
+
+@keyframes spin{
+    0%{transform:translateY(-50%) rotate(0deg);}
+    100%{transform:translateY(-50%) rotate(360deg);}
+}
+
+/* Theme toggle */
+.theme-toggle{
+    position:absolute;
+    top:20px;
+    right:20px;
+    cursor:pointer;
+}
+
+/* Light mode */
+.light-mode{
+    background:#f0f0f0;
+    color:#111;
+}
+
+.light-mode .card{
+    background:white;
+    color:#111;
+}
+
+.light-mode input{
+    background:#f5f5f5;
+    color:#111;
+}
 </style>
 </head>
-<script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/static/sw.js')
-    .then(() => console.log("Service Worker Registered"))
-    .catch(err => console.log("SW error", err));
-}
-</script>
+
 <body>
 
+<canvas id="particles"></canvas>
+
+<div class="theme-toggle" onclick="toggleTheme()">🌙 / ☀</div>
+
 <div class="card">
+
+<div class="logo-circle">
+    <img src="logo.png">
+</div>
+
 <h2>ENJOY POINT ERP</h2>
 
-<input type="text" id="username" placeholder="Username">
-<input type="password" id="password" placeholder="Password">
+<div class="input-group">
+    <input type="text" id="username" placeholder="Username">
+</div>
 
-<button onclick="login()">Login</button>
-<p id="error" class="error"></p>
+<div class="input-group">
+    <input type="password" id="password" placeholder="Password">
+    <span class="toggle-pass" onclick="togglePassword()">👁</span>
+</div>
+
+<div class="options">
+    <label>
+        <input type="checkbox" id="remember">
+        Remember me
+    </label>
+    <a href="#" onclick="forgotPassword()">Forgot password?</a>
+</div>
+
+<button id="loginBtn" onclick="login()">
+    Login
+    <div class="spinner" id="spinner"></div>
+</button>
+
 </div>
 
 <script>
-const BASE_URL="https://my-shop-erp.onrender.com";
 
+/* ================= CONFIG ================= */
+const BASE_URL="https://my-shop-erp.onrender.com";
+const SESSION_TIMEOUT = 60 * 60 * 1000; // 1 hour
+const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutes
+
+let idleTimer;
+
+/* ================= THEME ================= */
+function toggleTheme(){
+    document.body.classList.toggle("light-mode");
+}
+
+/* ================= PASSWORD TOGGLE ================= */
+function togglePassword(){
+    const pass=document.getElementById("password");
+    pass.type = pass.type==="password"?"text":"password";
+}
+
+/* ================= ENTER KEY ================= */
+document.addEventListener("keypress",function(e){
+    if(e.key==="Enter"){ login(); }
+});
+
+/* ================= REMEMBER ================= */
+window.onload=function(){
+    const savedUser=localStorage.getItem("savedUsername");
+    if(savedUser){
+        username.value=savedUser;
+        remember.checked=true;
+    }
+};
+
+/* ================= LOGIN ================= */
 async function login(){
+
+    if(!username.value || !password.value){
+        alert("Enter Username & Password");
+        return;
+    }
+
+    const btn=document.getElementById("loginBtn");
+    const spinner=document.getElementById("spinner");
+
+    btn.classList.add("loading");
+    spinner.style.display="block";
+
     const formData=new URLSearchParams();
     formData.append("username",username.value);
     formData.append("password",password.value);
 
-    const res=await fetch(BASE_URL+"/login",{
-        method:"POST",
-        headers:{"Content-Type":"application/x-www-form-urlencoded"},
-        body:formData
-    });
+    try{
+        const res=await fetch(BASE_URL+"/login",{
+            method:"POST",
+            headers:{"Content-Type":"application/x-www-form-urlencoded"},
+            body:formData
+        });
 
-    const data=await res.json();
+        const data=await res.json();
 
-    if(res.ok){
-        localStorage.setItem("token",data.access_token);
-        window.location.href="dashboard.html";
-    }else{
-        document.getElementById("error").innerText=data.detail;
+        btn.classList.remove("loading");
+        spinner.style.display="none";
+
+        if(res.ok){
+
+            const now = Date.now();
+
+            /* SAVE TOKEN */
+            if(remember.checked){
+                localStorage.setItem("token",data.access_token);
+                localStorage.setItem("savedUsername",username.value);
+                localStorage.setItem("loginTime",now);
+            }else{
+                sessionStorage.setItem("token",data.access_token);
+                sessionStorage.setItem("loginTime",now);
+                localStorage.removeItem("savedUsername");
+            }
+
+            /* DECODE ROLE */
+            const payload = JSON.parse(atob(data.access_token.split('.')[1]));
+
+            if(payload.role==="owner"){
+                window.location.href="dashboard.html";
+            }else{
+                window.location.href="staff_dashboard.html";
+            }
+
+        }else{
+            alert(data.detail);
+        }
+
+    }catch(err){
+        btn.classList.remove("loading");
+        spinner.style.display="none";
+        alert("Server Error");
     }
 }
-</script>
 
+/* ================= AUTO LOGOUT CHECK ================= */
+function checkSession(){
+
+    const loginTime = localStorage.getItem("loginTime") || sessionStorage.getItem("loginTime");
+
+    if(!loginTime) return;
+
+    const now = Date.now();
+
+    if(now - loginTime > SESSION_TIMEOUT){
+        logout();
+    }
+}
+
+setInterval(checkSession, 60000);
+
+/* ================= IDLE LOGOUT ================= */
+function resetIdleTimer(){
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(()=>{
+        alert("Logged out due to inactivity");
+        logout();
+    }, IDLE_TIMEOUT);
+}
+
+document.onmousemove = resetIdleTimer;
+document.onkeypress = resetIdleTimer;
+resetIdleTimer();
+
+/* ================= LOGOUT ================= */
+function logout(){
+    localStorage.clear();
+    sessionStorage.clear();
+    window.location.href="index.html";
+}
+
+</script>
 </body>
 </html>

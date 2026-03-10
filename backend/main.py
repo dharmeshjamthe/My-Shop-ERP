@@ -552,3 +552,14 @@ def bulk_add_products(products: List[Product]):
     finally:
         cursor.close()
         conn.close()
+
+@app.post("/login_activity")
+def login_activity(user_id: int):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT INTO login_logs (user_id, login_time) VALUES (%s, NOW())",
+        (user_id,)
+    )
+    conn.commit()
+    return {"message":"Logged"}
