@@ -563,3 +563,10 @@ def login_activity(user_id: int):
     )
     conn.commit()
     return {"message":"Logged"}
+
+@app.get("/product/barcode/{code}")
+def get_product_by_barcode(code: str):
+
+    product = db.query(Product).filter(Product.barcode == code).first()
+
+    return product

@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Purchase Entry</title>
 
+<script src="https://unpkg.com/html5-qrcode"></script>
+
 <style>
 *{margin:0;padding:0;box-sizing:border-box;font-family:Arial;}
 
@@ -87,6 +89,12 @@ table th, table td{
 .btn-row button{
     margin:5px;
 }
+
+#scanner{
+    width:350px;
+    margin:auto;
+    margin-top:15px;
+}
 </style>
 </head>
 
@@ -96,14 +104,12 @@ table th, table td{
 
 <h2>Purchase Entry</h2>
 
-<!-- HEADER -->
 <div class="header-row">
     <input id="invoice" placeholder="Invoice No">
     <input type="date" id="date">
     <input id="supplier" placeholder="Supplier">
 </div>
 
-<!-- PRODUCT INPUT -->
 <div class="input-row">
     <select id="productSelect"></select>
     <input type="number" id="boxes" placeholder="Boxes">
@@ -116,34 +122,38 @@ table th, table td{
     <input type="number" id="gstPercent" value="5">
 </div>
 
-<!-- TABLE -->
 <table id="purchaseTable">
-    <thead>
-        <tr>
-            <th>Product</th>
-            <th>Boxes</th>
-            <th>Final Total</th>
-            <th>Rate/Box</th>
-            <th>GST</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
+<thead>
+<tr>
+<th>Product</th>
+<th>Boxes</th>
+<th>Final Total</th>
+<th>Rate/Box</th>
+<th>GST</th>
+</tr>
+</thead>
+<tbody></tbody>
 </table>
 
 <div class="total-section">
-    Total: ₹ <span id="grandTotal">0</span>
+Total: ₹ <span id="grandTotal">0</span>
 </div>
 
 <div class="btn-row">
-    <button class="green" onclick="addItem()">Add Item</button>
-    <button class="red" onclick="deleteItem()">Delete Item</button>
-    <button class="blue" onclick="saveInvoice()">Save Invoice</button>
-    <button class="orange" onclick="location.href='add-product.html'">+ Add Product</button>
+<button class="green" onclick="addItem()">Add Item</button>
+<button class="red" onclick="deleteItem()">Delete Item</button>
+<button class="blue" onclick="saveInvoice()">Save Invoice</button>
+<button class="orange" onclick="location.href='add-product.html'">+ Add Product</button>
+<button onclick="startScanner()">Scan Barcode</button>
+
+<div id="scanner"></div>
+
 </div>
 
 </div>
 
 <script>
+
 const BASE_URL="https://my-shop-erp.onrender.com";
 let products=[];
 let items=[];
@@ -151,33 +161,49 @@ let items=[];
 document.getElementById("date").value=new Date().toISOString().split("T")[0];
 
 async function loadProducts(){
-    const token=localStorage.getItem("token");
-    const res=await fetch(BASE_URL+"/products",{headers:{Authorization:"Bearer "+token}});
-    products=await res.json();
 
-    const select=document.getElementById("productSelect");
-    products.forEach(p=>{
-        const opt=document.createElement("option");
-        opt.value=p[0];
-        opt.text=p[2];
-        select.appendChild(opt);
-    });
+const token=localStorage.getItem("token");
+
+const res=await fetch(BASE_URL+"/products",{headers:{Authorization:"Bearer "+token}});
+
+products=await res.json();
+
+const select=document.getElementById("productSelect");
+
+products.forEach(p=>{
+
+const opt=document.createElement("option");
+
+opt.value=p[0];
+opt.text=p[2];
+
+if(p.barcode){
+opt.dataset.barcode=p.barcode;
+}
+
+select.appendChild(opt);
+
+});
+
 }
 
 function calculateRate(){
-    const boxes=parseFloat(boxesInput.value)||0;
-    const total=parseFloat(totalAmount.value)||0;
-    const gstTypeVal=gstType.value;
-    const gst=parseFloat(gstPercent.value)||0;
 
-    let finalTotal=total;
+const boxes=parseFloat(boxesInput.value)||0;
+const total=parseFloat(totalAmount.value)||0;
+const gstTypeVal=gstType.value;
+const gst=parseFloat(gstPercent.value)||0;
 
-    if(gstTypeVal==="EXTRA"){
-        finalTotal=total*(1+gst/100);
-    }
+let finalTotal=total;
 
-    const rate=boxes?finalTotal/boxes:0;
-    finalRate.value=rate.toFixed(2);
+if(gstTypeVal==="EXTRA"){
+finalTotal=total*(1+gst/100);
+}
+
+const rate=boxes?finalTotal/boxes:0;
+
+finalRate.value=rate.toFixed(2);
+
 }
 
 const boxesInput=document.getElementById("boxes");
@@ -192,108 +218,188 @@ gstType.onchange=calculateRate;
 gstPercent.oninput=calculateRate;
 
 function addItem(){
-    const productName=productSelect.options[productSelect.selectedIndex].text;
-    const boxes=parseFloat(boxesInput.value);
-    const total=parseFloat(totalAmount.value);
-    const gstTypeVal=gstType.value;
-    const gst=parseFloat(gstPercent.value)||0;
 
-    if(!boxes || !total){
-        alert("Enter valid data");
-        return;
-    }
+const productName=productSelect.options[productSelect.selectedIndex].text;
+const boxes=parseFloat(boxesInput.value);
+const total=parseFloat(totalAmount.value);
+const gstTypeVal=gstType.value;
+const gst=parseFloat(gstPercent.value)||0;
 
-    let finalTotal=total;
-    if(gstTypeVal==="EXTRA"){
-        finalTotal=total*(1+gst/100);
-    }
+if(!boxes || !total){
+alert("Enter valid data");
+return;
+}
 
-    const rate=finalTotal/boxes;
+let finalTotal=total;
 
-    items.push(finalTotal);
+if(gstTypeVal==="EXTRA"){
+finalTotal=total*(1+gst/100);
+}
 
-    const row=document.createElement("tr");
-    row.innerHTML=`
-        <td>${productName}</td>
-        <td>${boxes}</td>
-        <td>${finalTotal.toFixed(2)}</td>
-        <td>${rate.toFixed(2)}</td>
-        <td>${gstTypeVal}</td>
-    `;
+const rate=finalTotal/boxes;
 
-    document.querySelector("#purchaseTable tbody").appendChild(row);
-    updateTotal();
+items.push(finalTotal);
+
+const row=document.createElement("tr");
+
+row.innerHTML=`
+<td>${productName}</td>
+<td>${boxes}</td>
+<td>${finalTotal.toFixed(2)}</td>
+<td>${rate.toFixed(2)}</td>
+<td>${gstTypeVal}</td>
+`;
+
+document.querySelector("#purchaseTable tbody").appendChild(row);
+
+updateTotal();
+
 }
 
 function updateTotal(){
-    const total=items.reduce((a,b)=>a+b,0);
-    document.getElementById("grandTotal").innerText=total.toFixed(2);
+
+const total=items.reduce((a,b)=>a+b,0);
+
+document.getElementById("grandTotal").innerText=total.toFixed(2);
+
 }
 
 function deleteItem(){
-    const table=document.querySelector("#purchaseTable tbody");
-    if(table.lastChild){
-        table.removeChild(table.lastChild);
-        items.pop();
-        updateTotal();
-    }
+
+const table=document.querySelector("#purchaseTable tbody");
+
+if(table.lastChild){
+
+table.removeChild(table.lastChild);
+
+items.pop();
+
+updateTotal();
+
+}
+
+}
+
+/* ---------- CAMERA + BARCODE SCANNER ---------- */
+
+async function startScanner(){
+
+try{
+
+await navigator.mediaDevices.getUserMedia({video:true});
+
+const html5QrCode=new Html5Qrcode("scanner");
+
+Html5QrCode.getCameras().then(devices=>{
+
+if(devices.length){
+
+const cameraId=devices[0].id;
+
+html5QrCode.start(
+cameraId,
+{
+fps:10,
+qrbox:250
+},
+(decodedText)=>{
+
+const select=document.getElementById("productSelect");
+
+for(let i=0;i<select.options.length;i++){
+
+if(select.options[i].dataset.barcode===decodedText){
+
+select.selectedIndex=i;
+
+alert("Product Detected: "+select.options[i].text);
+
+break;
+
+}
+
+}
+
+html5QrCode.stop();
+
+}
+
+);
+
+}
+
+});
+
+}catch(err){
+
+alert("Please allow camera permission to scan barcode");
+
+}
+
 }
 
 async function saveInvoice(){
 
-    if(items.length === 0){
-        alert("Add at least one item");
-        return;
-    }
+if(items.length === 0){
+alert("Add at least one item");
+return;
+}
 
-    const token = localStorage.getItem("token");
+const token = localStorage.getItem("token");
 
-    const invoice_number = document.getElementById("invoice").value;
-    const purchase_date = document.getElementById("date").value;
-    const supplier = document.getElementById("supplier").value;
+const invoice_number = document.getElementById("invoice").value;
+const purchase_date = document.getElementById("date").value;
+const supplier = document.getElementById("supplier").value;
 
-    const total_bill_amount = items.reduce((a,b)=>a+b,0);
+const total_bill_amount = items.reduce((a,b)=>a+b,0);
 
-    let purchaseItems = [];
+let purchaseItems = [];
 
-    document.querySelectorAll("#purchaseTable tbody tr").forEach(row=>{
-        purchaseItems.push({
-            product_id: productSelect.value,
-            box_quantity: parseInt(row.children[1].innerText),
-            purchase_rate_per_box: parseFloat(row.children[3].innerText),
-            total_amount: parseFloat(row.children[2].innerText)
-        });
-    });
+document.querySelectorAll("#purchaseTable tbody tr").forEach(row=>{
 
-    const body = {
-        purchase_date,
-        supplier_id: 1,   // for now static (later dynamic)
-        invoice_number,
-        total_bill_amount,
-        added_by: 1,
-        items: purchaseItems
-    };
+purchaseItems.push({
+product_id: productSelect.value,
+box_quantity: parseInt(row.children[1].innerText),
+purchase_rate_per_box: parseFloat(row.children[3].innerText),
+total_amount: parseFloat(row.children[2].innerText)
+});
 
-    const res = await fetch("http://127.0.0.1:8000/add_purchase",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json",
-            "Authorization":"Bearer "+token
-        },
-        body:JSON.stringify(body)
-    });
+});
 
-    if(res.ok){
-        alert("Invoice Saved Successfully");
-        location.reload();
-    }else{
-        const err = await res.json();
-        console.log("Backend Error:", err);
-        alert("Backend Error: " + JSON.stringify(err));
-    }
+const body={
+purchase_date,
+supplier_id:1,
+invoice_number,
+total_bill_amount,
+added_by:1,
+items:purchaseItems
+};
+
+const res=await fetch("http://127.0.0.1:8000/add_purchase",{
+
+method:"POST",
+
+headers:{
+"Content-Type":"application/json",
+"Authorization":"Bearer "+token
+},
+
+body:JSON.stringify(body)
+
+});
+
+if(res.ok){
+
+alert("Invoice Saved Successfully");
+
+location.reload();
+
+}
+
 }
 
 loadProducts();
+
 </script>
 
 </body>
