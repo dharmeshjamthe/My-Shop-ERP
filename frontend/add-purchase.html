@@ -111,15 +111,22 @@ margin-top:15px;
 </div>
 
 <div class="input-row">
+
+<input id="productSearch" placeholder="Search Product">
+
 <select id="productSelect"></select>
+
 <input type="number" id="boxes" placeholder="Boxes">
 <input type="number" id="totalAmount" placeholder="Total Amount">
 <input id="finalRate" placeholder="Final Rate/Box" readonly>
+
 <select id="gstType">
 <option value="INCLUDED">INCLUDED</option>
 <option value="EXTRA">EXTRA</option>
 </select>
+
 <input type="number" id="gstPercent" value="5">
+
 </div>
 
 <table id="purchaseTable">
@@ -188,8 +195,8 @@ products.forEach(p=>{
 
 const opt=document.createElement("option");
 
-opt.value=p[0];
-opt.text=p[2];
+opt.value=p.id;
+opt.text=p.product_name;
 
 if(p.barcode){
 opt.dataset.barcode=p.barcode;
@@ -207,6 +214,33 @@ alert("Products load failed");
 }
 
 }
+
+/* SEARCHABLE DROPDOWN */
+
+document.getElementById("productSearch").addEventListener("input",function(){
+
+const search=this.value.toLowerCase();
+
+const select=document.getElementById("productSelect");
+
+select.innerHTML="";
+
+products
+.filter(p=>p.product_name.toLowerCase().includes(search))
+.forEach(p=>{
+
+const opt=document.createElement("option");
+
+opt.value=p.id;
+opt.text=p.product_name;
+
+select.appendChild(opt);
+
+});
+
+});
+
+/* RATE CALCULATION */
 
 function calculateRate(){
 
