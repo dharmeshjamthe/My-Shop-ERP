@@ -16,12 +16,12 @@ padding:20px;
 }
 
 .container{
-max-width:1100px;
+max-width:1350px;
 margin:auto;
 background:white;
-padding:20px;
-border-radius:8px;
-box-shadow:0 0 10px rgba(0,0,0,0.1);
+padding:25px;
+border-radius:10px;
+box-shadow:0 0 12px rgba(0,0,0,0.12);
 }
 
 h2{
@@ -38,9 +38,17 @@ margin-bottom:15px;
 
 .input-row{
 display:grid;
-grid-template-columns:2fr 1fr 1fr 1fr 1fr 1fr;
-gap:8px;
-margin-bottom:10px;
+grid-template-columns:2fr 2fr 1fr 1fr 1fr 1fr 1fr;
+gap:12px;
+margin-bottom:12px;
+align-items:center;
+width:100%;
+}
+
+.input-row input,
+.input-row select{
+width:100%;
+height:38px;
 }
 
 input, select{
@@ -95,6 +103,34 @@ width:350px;
 margin:auto;
 margin-top:15px;
 }
+
+/* SEARCH DROPDOWN */
+
+.search-box{
+position:relative;
+}
+
+#productDropdown{
+position:absolute;
+background:white;
+border:1px solid #ccc;
+width:100%;
+max-height:200px;
+overflow-y:auto;
+display:none;
+z-index:1000;
+}
+
+.dropdown-item{
+padding:8px;
+cursor:pointer;
+border-bottom:1px solid #eee;
+}
+
+.dropdown-item:hover{
+background:#f2f2f2;
+}
+
 </style>
 </head>
 
@@ -112,7 +148,10 @@ margin-top:15px;
 
 <div class="input-row">
 
+<div class="search-box">
 <input id="productSearch" placeholder="Search Product">
+<div id="productDropdown"></div>
+</div>
 
 <select id="productSelect"></select>
 
@@ -177,8 +216,6 @@ document.getElementById("date").value=new Date().toISOString().split("T")[0];
 
 async function loadProducts(){
 
-try{
-
 const res=await fetch(BASE_URL+"/products",{
 headers:{
 Authorization:"Bearer "+token
@@ -193,50 +230,68 @@ select.innerHTML="<option>Select Product</option>";
 
 products.forEach(p=>{
 
+let id=p.id || p.product_id || p[0];
+let name=p.product_name || p.name || p[2];
+
 const opt=document.createElement("option");
 
-opt.value=p.id;
-opt.text=p.product_name;
-
-if(p.barcode){
-opt.dataset.barcode=p.barcode;
-}
+opt.value=id;
+opt.text=name;
 
 select.appendChild(opt);
 
 });
 
-}catch(err){
-
-console.log(err);
-alert("Products load failed");
-
 }
 
-}
+loadProducts();
 
-/* SEARCHABLE DROPDOWN */
+/* SEARCHABLE PRODUCT DROPDOWN */
 
-document.getElementById("productSearch").addEventListener("input",function(){
+const searchInput=document.getElementById("productSearch");
+const dropdown=document.getElementById("productDropdown");
+
+searchInput.addEventListener("input",function(){
 
 const search=this.value.toLowerCase();
 
-const select=document.getElementById("productSelect");
+dropdown.innerHTML="";
 
-select.innerHTML="";
+if(!search){
+dropdown.style.display="none";
+return;
+}
 
-products
-.filter(p=>p.product_name.toLowerCase().includes(search))
-.forEach(p=>{
+const results=products.filter(p=>{
+let name=p.product_name || p.name || p[2];
+return name.toLowerCase().includes(search);
+});
 
-const opt=document.createElement("option");
+results.slice(0,20).forEach(p=>{
 
-opt.value=p.id;
-opt.text=p.product_name;
+let id=p.id || p.product_id || p[0];
+let name=p.product_name || p.name || p[2];
 
-select.appendChild(opt);
+const div=document.createElement("div");
+
+div.className="dropdown-item";
+div.innerText=name;
+
+div.onclick=function(){
+
+searchInput.value=name;
+
+document.getElementById("productSelect").value=id;
+
+dropdown.style.display="none";
+
+};
+
+dropdown.appendChild(div);
 
 });
+
+dropdown.style.display="block";
 
 });
 
@@ -271,6 +326,8 @@ boxesInput.oninput=calculateRate;
 totalAmount.oninput=calculateRate;
 gstType.onchange=calculateRate;
 gstPercent.oninput=calculateRate;
+
+/* ADD ITEM */
 
 function addItem(){
 
@@ -338,6 +395,8 @@ updateTotal();
 
 }
 
+/* SAVE PURCHASE */
+
 async function saveInvoice(){
 
 if(items.length===0){
@@ -398,8 +457,6 @@ alert("Save failed");
 }
 
 }
-
-loadProducts();
 
 </script>
 
